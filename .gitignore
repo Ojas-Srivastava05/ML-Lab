@@ -1,0 +1,2 @@
+# GitHub rejects files over 100 MB. Keep the credit-card dataset local.
+data/creditcard.csv

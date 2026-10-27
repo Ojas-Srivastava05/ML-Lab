@@ -9,6 +9,9 @@ ROOT = Path(__file__).resolve().parent
 FONT_DIR = Path(matplotlib.get_data_path()) / "fonts" / "ttf"
 PLOTS4 = ROOT / "plots" / "assignment_4"
 PLOTS5 = ROOT / "plots" / "assignment_5"
+PLOTS6 = ROOT / "plots" / "assignment_6"
+PLOTS7 = ROOT / "plots" / "assignment_7"
+PLOTS8 = ROOT / "plots" / "assignment_8"
 
 
 class Guide(FPDF):
@@ -122,8 +125,10 @@ class Guide(FPDF):
         self.ln(2)
 
 
-def build_assignment_4():
-    pdf = Guide("Assignment 4 explained  ·  u24ai028")
+def build_assignment_4(pdf=None):
+    standalone = pdf is None
+    if standalone:
+        pdf = Guide("Assignment 4 explained  ·  u24ai028")
     pdf.cover(
         "Assignment 4, explained",
         "California Housing — from split to Random Forest",
@@ -353,13 +358,17 @@ def build_assignment_4():
     ]:
         pdf.bullet(line)
 
+    if not standalone:
+        return pdf
     out = ROOT / "Assignment 4" / "u24ai028_Assignment_4_Explained.pdf"
     pdf.output(str(out))
     return out
 
 
-def build_assignment_5():
-    pdf = Guide("Assignment 5 explained  ·  u24ai028")
+def build_assignment_5(pdf=None):
+    standalone = pdf is None
+    if standalone:
+        pdf = Guide("Assignment 5 explained  ·  u24ai028")
     pdf.cover(
         "Assignment 5, explained",
         "Gradient descent, polynomials, and regularisation",
@@ -586,11 +595,371 @@ def build_assignment_5():
     ]:
         pdf.bullet(line)
 
+    if not standalone:
+        return pdf
     out = ROOT / "Assignment 5" / "u24ai028_Assignment_5_Explained.pdf"
     pdf.output(str(out))
     return out
 
 
+def build_assignment_6(pdf=None):
+    standalone = pdf is None
+    if standalone:
+        pdf = Guide("Assignment 6 explained  ·  u24ai028")
+    pdf.cover(
+        "Assignment 6, explained",
+        "Fraud imbalance, hypothesis tests, and spam Naive Bayes",
+        "A plain-language walkthrough of both problems,\nwith the numbers from the solution notebook.",
+    )
+
+    pdf.add_page()
+    pdf.h1("Two problems, one notebook")
+    pdf.p(
+        "Problem 1 uses 284,807 card payments. 492 of them are fraud, which is 0.173%. "
+        "The question is how to train a model when one class almost disappears, and how a hypothesis test can tell you which columns actually differ between the classes."
+    )
+    pdf.p(
+        "Problem 2 uses 5,572 SMS messages, labelled ham or spam. The text is cleaned, turned into word counts, and then two Naive Bayes models are compared."
+    )
+
+    pdf.h1("Problem 1A. What is in the file?")
+    pdf.p(
+        "Each row is one transaction. Time is seconds since the first payment. V1 to V28 are principal components of the original confidential columns, so they are already numeric and roughly scaled. Amount is the money. Class is 0 for a normal payment and 1 for fraud. There are no missing values."
+    )
+    pdf.p(
+        "Fraud amounts are not simply 'the big ones'. Mean fraud amount is $122, mean legitimate amount is $88, but the median fraud is only $9.25. A rule like 'flag large payments' would miss most frauds."
+    )
+    pdf.figure(
+        PLOTS6 / "class_distribution.png",
+        "Left: fraud is a sliver, 0.17%. Right: the same counts on a log scale, so the 492 frauds are visible.",
+    )
+    pdf.figure(
+        PLOTS6 / "amount_by_class.png",
+        "Both classes spread across small and large amounts. Amount alone does not separate them.",
+    )
+
+    pdf.h1("Problem 1B. Why imbalance breaks accuracy")
+    pdf.p(
+        "Predict every payment as legitimate and you are right 284,315 / 284,807 = 99.827% of the time. Recall on fraud is 0%. The loss of a normal model is the sum of mistakes. Almost all of those terms come from legitimate rows, so the easiest way to reduce the loss is to say 'not fraud' everywhere."
+    )
+    pdf.p(
+        "The training fix is to change only the training mix. The test set stays at the real 0.17% fraud rate. A resampled test set would be a fake exam."
+    )
+    pdf.p("Stratified 80/20 split, random_state=42: 227,845 train rows (394 frauds) and 56,962 test rows (98 frauds). Time and Amount are on different scales from V1–V28, so StandardScaler is fit on the training columns only.")
+    pdf.say("Accuracy of 99.8% can mean the model caught nothing. For fraud I report precision, recall, and F1 on the fraud class.")
+
+    pdf.h1("Problem 1C. Three ways to rebalance the training set")
+    pdf.bullet("Random under-sampling deletes legitimate training rows until 394 frauds and 394 legitimate rows remain (788 rows). Fast, but most normal-payment patterns are thrown away.")
+    pdf.bullet("Random over-sampling copies the 394 frauds until there are 227,451 of them. The training set becomes 454,902 rows. Nothing new is invented; the same frauds are repeated.")
+    pdf.bullet("SMOTE invents a fraud on the line between a real fraud and one of its nearest fraud neighbours, until the counts match. Same size as over-sampling, 454,902 rows.")
+    pdf.p("The same logistic regression is trained four times. The only change is the training mix. Scores below are on the original test set, fraud class.")
+    pdf.row(["Training mix", "Precision", "Recall", "F1"], [70, 35, 35, 35], bold=True)
+    for row in [
+        ("No resampling", "0.827", "0.633", "0.717"),
+        ("Under-sampling", "0.038", "0.918", "0.074"),
+        ("Over-sampling", "0.061", "0.918", "0.115"),
+        ("SMOTE", "0.058", "0.918", "0.109"),
+    ]:
+        pdf.row(row, [70, 35, 35, 35])
+    pdf.ln(1.5)
+    pdf.figure(
+        PLOTS6 / "sampling_comparison.png",
+        "Sampling lifts recall from 0.63 to 0.92 and knocks precision down near 0.05. F1 follows precision.",
+    )
+
+    pdf.h1("Problem 1D. What to conclude")
+    pdf.h2("Which method worked best?")
+    pdf.p(
+        "By fraud F1, no resampling wins (0.717). It catches 63% of the 98 test frauds and 83% of its alarms are real. "
+        "All three samplers catch 92% of frauds, but only about 4 to 6 of every 100 alarms are real, so F1 falls below 0.12."
+    )
+    pdf.p(
+        "Among the samplers, random over-sampling is slightly ahead of SMOTE, and under-sampling is last, because it also deletes legitimate examples. "
+        "SMOTE did not beat plain copying: 394 frauds in 30 dimensions is a thin cloud, so a synthetic neighbour is not much new information. "
+        "Balancing all the way to 227,000 fake frauds also makes the model too willing to shout 'fraud'."
+    )
+    pdf.p(
+        "If the bank's real goal is 'miss almost no fraud', a sampler is still useful, but the 0.5 cutoff should then be raised until the false alarms are bearable. F1 at the default cutoff is the wrong only score for that goal."
+    )
+    pdf.h2("Which metrics matter?")
+    pdf.bullet("Recall: a missed fraud costs money. This is the first number a fraud team asks for.")
+    pdf.bullet("Precision: every false alarm is a blocked card and a phone call.")
+    pdf.bullet("F1: one number that is bad if either of those is bad.")
+    pdf.bullet("Accuracy: ignore it as a headline. 99.83% is the score of doing nothing.")
+    pdf.h2("How a hypothesis test helps choose features")
+    pdf.p(
+        "Mann-Whitney U asks, for each column, whether fraud values tend to sit higher or lower than legitimate values. It does not assume a bell curve, which matters because Amount is skewed. The test is run on the training set only."
+    )
+    pdf.p(
+        "With 200,000 rows, 29 of 30 columns have p < 0.05. A tiny shift becomes 'significant' just because the sample is huge. The useful number is the effect size (rank-biserial r, from -1 to 1). Near 0 means the classes are mixed together on that column."
+    )
+    pdf.row(["Feature", "Effect r", "Reading"], [40, 35, 100], bold=True)
+    for row in [
+        ("V14", "-0.896", "fraud tends to be much lower"),
+        ("V4", "+0.884", "fraud tends to be much higher"),
+        ("V12", "-0.865", "fraud tends to be much lower"),
+        ("V10", "-0.831", "fraud tends to be much lower"),
+        ("V11", "+0.825", "fraud tends to be much higher"),
+    ]:
+        pdf.row(row, [40, 35, 100])
+    pdf.ln(1.5)
+    pdf.p("Keep the columns with large |r|. Do not rank columns by p-value. A column with r near 0 can be dropped even if its p-value is tiny.")
+    pdf.figure(
+        PLOTS6 / "hypothesis_effects.png",
+        "Red bars: fraud is higher. Blue bars: fraud is lower. Longer bars are the features worth keeping.",
+    )
+    pdf.say("I do not trust accuracy here. Sampling raises recall to 92% and destroys precision. V14 and V4 separate the classes; the p-value does not, because almost every p-value is tiny.")
+
+    pdf.h1("Problem 2. SMS spam")
+    pdf.p(
+        "5,572 messages: 4,825 ham and 747 spam. Cleaning is three steps. Lowercase, so Free and free match. Strip punctuation, so free! and free match. Drop English stop words (the, a, to), which show up in both classes."
+    )
+    pdf.p(
+        "CountVectorizer builds the vocabulary from the training messages only (6,964 words), then turns each message into a row of numbers. binary=True makes that row 0/1 (word absent or present) for Bernoulli NB. The default keeps the count for Multinomial NB. The split is a stratified 80/20: 4,457 train, 1,115 test. alpha=1 is Laplace smoothing, so a word never seen in spam does not force the whole spam probability to zero."
+    )
+    pdf.row(["Model", "Accuracy", "Precision", "Recall", "F1"], [55, 28, 30, 28, 28], bold=True)
+    for row in [
+        ("Bernoulli NB", "96.59%", "0.991", "0.752", "0.855"),
+        ("Multinomial NB", "97.76%", "0.949", "0.879", "0.913"),
+    ]:
+        pdf.row(row, [55, 28, 30, 28, 28])
+    pdf.ln(1.5)
+    pdf.p(
+        "Multinomial NB is better on spam F1 (0.913 vs 0.855). It catches more spam (recall 0.88 vs 0.75). Bernoulli is slightly more precise."
+    )
+    pdf.p(
+        "Bernoulli NB treats each word as a yes/no event. Writing 'free' five times is the same evidence as writing it once. That fits a binary bag of words, and it fits short SMS where presence matters more than repetition. "
+        "Multinomial NB treats the message as a bag of tokens and uses the count. A repeated spam word is repeated evidence. That fits raw counts, or TF-IDF, which is a weighted count. "
+        "On SMS most counts are already 0 or 1, so the models land close. Multinomial still wins when a spam word is repeated."
+    )
+    pdf.say("Multinomial NB on word counts wins, F1 0.91. Bernoulli only records whether each word appears, so it misses the extra evidence in a repeated spam word.")
+
+    if not standalone:
+        return pdf
+    out = ROOT / "Assignment 6" / "u24ai028_Assignment_6_Explained.pdf"
+    pdf.output(str(out))
+    return out
+
+
+def build_assignment_7(pdf=None):
+    standalone = pdf is None
+    if standalone:
+        pdf = Guide("Assignment 7 explained  ·  u24ai028")
+    pdf.cover(
+        "Assignment 7, explained",
+        "Abalone age groups: logistic regression, PCA, and SVM",
+        "A plain-language walkthrough of both parts,\nwith the numbers from the solution notebook.",
+    )
+
+    pdf.add_page()
+    pdf.h1("What the file is, and why Rings becomes a class")
+    pdf.p(
+        "UCI Abalone has 4,177 animals and no header. The columns, in order, are Sex (M, F, or I for infant), Length, Diameter, Height, Whole weight, Shucked weight, Viscera weight, Shell weight, and Rings."
+    )
+    pdf.p(
+        "Rings is a count. Adding 1.5 is a rough age in years. Logistic regression and SVM, as used in this lab, predict a category, so the count is cut into three groups of similar size before any model is trained:"
+    )
+    pdf.bullet("young: 8 rings or fewer (1,407 animals)")
+    pdf.bullet("medium: 9 or 10 rings (1,323)")
+    pdf.bullet("old: 11 rings or more (1,447)")
+    pdf.p("Those cuts sit near the quartiles of this file. Rings is not given to the model as an input. If it were, the label would be a copy of a feature and the accuracy would be meaningless.")
+    pdf.p("Sex is text. One-hot encoding makes dummy columns. One of the three is dropped, because M + F + I would always equal 1 and would hand PCA a column with no information. The remaining inputs are then standardized: zero mean, unit variance, using the training rows only.")
+    pdf.figure(
+        PLOTS7 / "eda_shell_by_age.png",
+        "Older groups have heavier shells. Size and age move together, which is why the first principal component will be 'overall size'.",
+    )
+    pdf.say("I turned Rings into young / medium / old, and I did not feed Rings back in as a feature.")
+
+    pdf.h1("Part A. Logistic regression on the scaled features")
+    pdf.p(
+        "Same split for every model later: 80/20, stratified, random_state=42. That is 3,341 train and 836 test. "
+        "The scaled matrix has 9 columns: 7 measurements plus Sex_I and Sex_M (female is the dropped baseline)."
+    )
+    pdf.p(
+        "With three classes, logistic regression learns one score per class and softmax turns the scores into probabilities that add to 1. Current sklearn does this automatically. The old multi_class='multinomial' argument has been removed."
+    )
+    pdf.p("Test accuracy is 66.15%. Young and old are easier. Medium is the overlap: precision and recall are both about 0.51. A medium animal is often called young or old, which is expected because 9–10 rings sits between the other two groups.")
+    pdf.row(["True class", "Precision", "Recall", "F1", "Support"], [40, 32, 32, 32, 32], bold=True)
+    for row in [
+        ("young", "0.757", "0.797", "0.776", "281"),
+        ("medium", "0.515", "0.509", "0.512", "265"),
+        ("old", "0.698", "0.669", "0.683", "290"),
+    ]:
+        pdf.row(row, [40, 32, 32, 32, 32])
+    pdf.ln(1.5)
+    pdf.figure(
+        PLOTS7 / "logit_confusion.png",
+        "Most mistakes are one group away. Young is rarely called old, and the other way around.",
+    )
+
+    pdf.h1("Part A. PCA, then logistic regression again")
+    pdf.p(
+        "PCA rotates the 9 standardized columns into new axes that are uncorrelated. The first axis is the direction where the animals differ most. explained_variance_ratio_ is the share of variance on each axis:"
+    )
+    pdf.row(["Component", "Share", "Cumulative"], [50, 50, 50], bold=True)
+    for row in [
+        ("PC1", "76.75%", "76.75%"),
+        ("PC2", "12.81%", "89.57%"),
+        ("PC3", "4.45%", "94.02%"),
+        ("PC4", "2.33%", "96.35%"),
+    ]:
+        pdf.row(row, [50, 50, 50])
+    pdf.ln(1.5)
+    pdf.p(
+        "Length, diameter, and the weights are almost the same fact ('how big is it'), so PC1 alone holds 77% of the variance. "
+        "The rule used here: keep the smallest number of components that still hold 95% of the variance. That is 4 of 9. The other five are dropped before the second logistic regression."
+    )
+    pdf.p(
+        "The heatmap is logit_pca.coef_. Rows are classes, columns are PC1–PC4. A positive cell means that component pushes the prediction toward that class. "
+        "Young has a negative PC1 weight (-0.54) and old has a positive one (+0.43): the big 'size' direction points from young toward old. Medium's weights are all small, which matches it being the class the model is unsure about."
+    )
+    pdf.p("Test accuracy on the 4 components falls to 59.69%. The dropped components still carried some age signal. PCA here buys a smaller input, and it costs about 6 percentage points.")
+    pdf.figure(
+        PLOTS7 / "pca_coefficient_heatmap.png",
+        "PC1 separates young (negative) from old (positive). Medium barely uses any component.",
+    )
+    pdf.say("Four components keep 96% of the variance. PC1 is size. Accuracy drops from 66% to 60% because some age signal lived in the components we dropped.")
+
+    pdf.h1("Part B. SVM, and the four-way comparison")
+    pdf.p(
+        "An SVM looks for the widest gap between classes. kernel='rbf' lets the boundary curve. C=1.0 is the penalty for points on the wrong side of that gap. gamma='scale' sets the width of the Gaussian from the data. The same training rows, the same scaler, and the same 4 principal components are reused, so the comparison is fair."
+    )
+    pdf.row(["Model", "Features", "Test accuracy"], [60, 70, 45], bold=True)
+    for row in [
+        ("Logistic regression", "9 standardized columns", "66.15%"),
+        ("Logistic regression", "first 4 PCs", "59.69%"),
+        ("SVM, RBF kernel", "9 standardized columns", "67.58%"),
+        ("SVM, RBF kernel", "first 4 PCs", "62.32%"),
+    ]:
+        pdf.row(row, [60, 70, 45])
+    pdf.ln(1.5)
+    pdf.p(
+        "The RBF SVM on the original standardized columns is the best of the four, at 67.58%. It only barely beats logistic regression (66.15%). The classes overlap in size, so a curved boundary helps a little, not a lot. "
+        "PCA lowers both models by about 6 points. Use PCA here when you want fewer, uncorrelated inputs. Use the full standardized columns when you want the best test accuracy."
+    )
+    pdf.figure(
+        PLOTS7 / "model_comparison.png",
+        "SVM on the full scaled features is the best bar. Both PCA models sit lower.",
+    )
+    pdf.figure(
+        PLOTS7 / "svm_confusion.png",
+        "Same pattern as logistic regression: young and old are recognised, medium is the confused class.",
+    )
+    pdf.say("Best test accuracy is the RBF SVM on the 9 scaled columns, 67.6%. PCA to 4 components keeps 96% of the variance and costs about 6 points of accuracy.")
+
+    if not standalone:
+        return pdf
+    out = ROOT / "Assignment 7" / "u24ai028_Assignment_7_Explained.pdf"
+    pdf.output(str(out))
+    return out
+
+
+def build_assignment_8(pdf=None):
+    standalone = pdf is None
+    if standalone:
+        pdf = Guide("Assignment 8 explained  ·  u24ai028")
+    pdf.cover(
+        "Assignment 8, explained",
+        "A neural network that reads handwritten digits",
+        "A plain-language walkthrough of the MNIST network,\nwith the numbers from the solution notebook.",
+    )
+
+    pdf.add_page()
+    pdf.h1("What you are asked to build")
+    pdf.p(
+        "MNIST is 70,000 pictures of handwritten digits, already split into 60,000 for training and 10,000 for testing. Each picture is 28 by 28 pixels, grayscale, and the label is the digit 0–9."
+    )
+    pdf.p(
+        "The model is a feed-forward network: an input layer, hidden layers, and a softmax output. It is trained with cross-entropy loss and Adam. This lab environment does not have TensorFlow or PyTorch, so the notebook uses sklearn's MLPClassifier. That class is the same kind of network: 784 inputs, ReLU hidden units, a 10-way softmax, cross-entropy, and solver='adam'."
+    )
+    pdf.figure(
+        PLOTS8 / "example_digits.png",
+        "Two examples of each digit. The same digit is written differently every time, which is why a straight classifier is not enough.",
+    )
+
+    pdf.h1("Preprocessing")
+    pdf.bullet("Pixels arrive as integers from 0 to 255. Divide by 255 so every input is between 0 and 1. Large inputs make the first weight updates too violent.")
+    pdf.bullet("Flatten each 28×28 picture into a vector of 784 numbers. An ordinary neural net has no notion of 'the pixel above'. A convolutional net would keep the grid; this assignment asks for an ANN.")
+    pdf.bullet("The official 60,000 / 10,000 split is kept. Reshuffling it would make the test score incomparable with published MNIST numbers.")
+    pdf.p("The ten digits are roughly balanced in the training set (about 5,400 to 6,700 images each), so accuracy is not the trap it was on the fraud data.")
+
+    pdf.h1("The network, layer by layer")
+    pdf.bullet("Input, 784 units. One unit per pixel. This layer stores the image. It does not learn weights of its own.")
+    pdf.bullet("Hidden layer, 128 units. Each unit computes ReLU(w · x + b), and ReLU is max(0, z). Stacking these lets the net bend, which logistic regression cannot do.")
+    pdf.bullet("Hidden layer, 64 units. A second ReLU layer, reading the 128 units rather than the raw pixels.")
+    pdf.bullet("Output, 10 units, then softmax. Softmax turns the 10 scores into probabilities that add up to 1. The predicted digit is the largest probability.")
+    pdf.p(
+        "Cross-entropy is the loss. If the true digit is 7 and the network says 7 with probability 0.9, the loss is small. If it says 7 with probability 0.01, the loss is large. Adam updates each weight with its own step size, based on how noisy that weight's gradient has been. The starting step size used here is 0.001. The network sees the training set 20 times. Training cross-entropy ends at 0.0086."
+    )
+    pdf.figure(
+        PLOTS8 / "loss_curve.png",
+        "The loss falls quickly and then flattens. Twenty passes are enough for this size of network.",
+    )
+
+    pdf.h1("Test scores")
+    pdf.p("On the 10,000 images the network never trained on:")
+    pdf.row(["Metric", "Score", "Meaning"], [40, 35, 100], bold=True)
+    for row in [
+        ("Accuracy", "97.86%", "fraction of digits read correctly"),
+        ("Precision", "0.979", "macro: each digit weighted the same"),
+        ("Recall", "0.978", "macro: each digit weighted the same"),
+    ]:
+        pdf.row(row, [40, 35, 100])
+    pdf.ln(1.5)
+    pdf.p(
+        "Digit 1 is the easiest (precision and recall both about 0.99). Digits 4, 8, and 9 are the ones it mixes: a 4 can look like a 9, and an 8 can look like a 3 or a 5. The confusion matrix is almost diagonal, which is what a good digit reader looks like."
+    )
+    pdf.figure(
+        PLOTS8 / "confusion_matrix.png",
+        "Rows are the true digit, columns are the prediction. Off-diagonal cells are the mistakes.",
+    )
+    pdf.say("The 784-128-64-10 network reads 97.86% of the test digits. Precision and recall are essentially the same number because the classes are balanced.")
+
+    pdf.h1("Hyperparameters, against a plain benchmark")
+    pdf.p("One change at a time. Logistic regression is the same softmax with no hidden layer, so it shows what the hidden layers are worth.")
+    pdf.row(["Model", "Accuracy", "Precision", "Recall"], [62, 32, 35, 32], bold=True)
+    for row in [
+        ("Logistic regression", "92.71%", "0.926", "0.926"),
+        ("ANN, 64 units, lr 0.001", "97.54%", "0.975", "0.975"),
+        ("ANN, 128-64, lr 0.001", "97.86%", "0.979", "0.978"),
+        ("ANN, 128-64, lr 0.01", "97.42%", "0.974", "0.974"),
+    ]:
+        pdf.row(row, [62, 32, 35, 32])
+    pdf.ln(1.5)
+    pdf.bullet("Adding even one hidden layer jumps accuracy from 92.7% to 97.5%. A digit is not a straight cut through pixel space.")
+    pdf.bullet("A second hidden layer adds a bit more, 97.54% to 97.86%. Extra capacity helps, then the gains get small.")
+    pdf.bullet("Raising Adam's step from 0.001 to 0.01 lowers accuracy to 97.42%. The network still learns, but the steps are too coarse and it settles in a worse place.")
+    pdf.p(
+        "Published context, not trained in this notebook: a linear classifier on MNIST is usually about 92%, which matches the logistic regression here. A fully connected network of this size is usually 97–98%, which matches this ANN. A convolutional network, which knows that neighbouring pixels form strokes, is usually above 99%. This network cannot use that, because the picture was flattened."
+    )
+    pdf.figure(
+        PLOTS8 / "hyperparameter_comparison.png",
+        "The axis starts at 90% so the gap between logistic regression and the networks is visible.",
+    )
+    pdf.say("Hidden layers are worth about 5 points over logistic regression. Two layers and a learning rate of 0.001 is the best of the four settings I tried, at 97.86%.")
+
+    if not standalone:
+        return pdf
+    out = ROOT / "Assignment 8" / "u24ai028_Assignment_8_Explained.pdf"
+    pdf.output(str(out))
+    return out
+
+
 if __name__ == "__main__":
-    for path in (build_assignment_4(), build_assignment_5()):
+    builders = (
+        build_assignment_4,
+        build_assignment_5,
+        build_assignment_6,
+        build_assignment_7,
+        build_assignment_8,
+    )
+    for build in builders:
+        path = build()
         print(f"{path.relative_to(ROOT)}  {path.stat().st_size / 1024:.0f} KB")
+
+    combined = Guide("Assignments 4–8 explained  ·  u24ai028")
+    for build in builders:
+        build(combined)
+    combined_path = ROOT / "u24ai028_Assignments_4_to_8_Explained.pdf"
+    combined.output(str(combined_path))
+    print(f"{combined_path.relative_to(ROOT)}  {combined_path.stat().st_size / 1024:.0f} KB")
